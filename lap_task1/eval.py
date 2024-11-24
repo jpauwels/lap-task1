@@ -8,12 +8,14 @@ from sklearn.model_selection import GridSearchCV, GroupKFold
 from sklearn.svm import SVC, LinearSVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import ConfusionMatrixDisplay, make_scorer, confusion_matrix
 from pathlib import Path
 import numpy as np
 
+N_SPLITS = 5
 
 
-def classification_accuracy(base_dir, seed, common_positions, side, sample_rate, hrir_length):
+def classification_accuracy(base_dir, seed, common_positions, side, sample_rate, hrir_length, confmat_path):
     datasets = []
     azimuths, elevations = zip(*common_positions)
     for collection_id, paths in files.items():
@@ -40,7 +42,16 @@ def classification_accuracy(base_dir, seed, common_positions, side, sample_rate,
         'domain': [DomainTransformer('time'), DomainTransformer('magnitude'), DomainTransformer('magnitude_db')],
         'clf': [LinearSVC(dual='auto', max_iter=20000, random_state=seed), SVC(random_state=seed), LogisticRegression(max_iter=500, random_state=seed), DecisionTreeClassifier(max_depth=8, random_state=seed)],
     }
-    exp = GridSearchCV(pipe, param_grid, scoring='accuracy', cv=GroupKFold(n_splits=5), return_train_score=True, error_score='raise', n_jobs=-2).fit(all_features, all_targets, groups=all_groups)
+    score_metrics = {
+        'accuracy': 'accuracy',
+    }
+    if confmat_path:
+        score_metrics['confusion_matrix'] = make_scorer(confusion_matrix, normalize=None)
+    exp = GridSearchCV(pipe, param_grid, scoring=score_metrics, refit='accuracy', cv=GroupKFold(n_splits=N_SPLITS), return_train_score=True, error_score='raise', n_jobs=-2).fit(all_features, all_targets, groups=all_groups)
+    if confmat_path:
+        confmat = N_SPLITS*exp.cv_results_['mean_test_confusion_matrix'][exp.best_index_]
+        confmat_display = ConfusionMatrixDisplay(confmat, display_labels=files.keys()).plot(xticks_rotation='vertical', cmap='Blues')
+        confmat_display.figure_.savefig(confmat_path, bbox_inches='tight', pad_inches=0.05)
     mean_acc = exp.cv_results_['mean_test_accuracy'][exp.best_index_]
     std_acc = exp.cv_results_['std_test_accuracy'][exp.best_index_]
     return mean_acc, std_acc
@@ -52,6 +63,7 @@ def cli():
     parser = argparse.ArgumentParser(description='Task 1 Evaluator')
     parser.add_argument('processed_dir', type=str, help='Path to the directory containing the processed SOFA files.')
     parser.add_argument('--seed', default=0, help='Fix the random seed that initialises the classifiers.')
+    parser.add_argument('--confmat', nargs='?', type=str, default='', const='confmat.png', help='Save a PNG confusion matrix file to the given path.')
     args = parser.parse_args()
 
     ## Config
@@ -60,7 +72,7 @@ def cli():
     sample_rate = 44100
     hrir_length = 235
 
-    mean_acc, std_acc = classification_accuracy(Path(args.processed_dir), args.seed, common_positions, side, sample_rate, hrir_length)
+    mean_acc, std_acc = classification_accuracy(Path(args.processed_dir), args.seed, common_positions, side, sample_rate, hrir_length, args.confmat)
     print(f'{mean_acc} +/- {std_acc:.3f}')
 
 
