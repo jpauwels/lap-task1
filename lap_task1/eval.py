@@ -20,7 +20,7 @@ def classification_accuracy(base_dir, seed, common_positions, side, sample_rate,
         print(f'Reading {collection_id}')
         datasets.append(CustomSphericalDataset(collection_id,
             [base_dir / collection_id / p for p in paths],
-            features_spec=HrirSpec('time', side, azimuths, elevations, distance='farthest', samplerate=sample_rate, length=hrir_length, transform=Hrir3dTransform()),
+            features_spec=HrirSpec('time', side, flat_positions=False, fundamental_angles=azimuths, orthogonal_angles=elevations, distance='farthest', samplerate=sample_rate, length=hrir_length, transform=Hrir3dTransform()),
             group_spec=SubjectSpec(), target_spec=CollectionSpec(),
         ))
 
