@@ -3,6 +3,7 @@ from hartufo import CustomSphericalDataset
 from hartufo import HrirSpec, SubjectSpec, CollectionSpec
 from hartufo.transforms.hrir import Hrir3dTransform
 from hartufo.sklearn import Flatten, DomainTransformer
+import pandas as pd
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV, GroupKFold
 from sklearn.svm import SVC, LinearSVC
@@ -52,6 +53,7 @@ def classification_accuracy(base_dir, seed, common_positions, side, sample_rate,
         confmat = N_SPLITS*exp.cv_results_['mean_test_confusion_matrix'][exp.best_index_]
         confmat_display = ConfusionMatrixDisplay(confmat, display_labels=files.keys()).plot(xticks_rotation='vertical', cmap='Blues')
         confmat_display.figure_.savefig(confmat_path, bbox_inches='tight', pad_inches=0.05)
+    pd.DataFrame({k: v for k, v in exp.cv_results_.items() if not k.endswith('_confusion_matrix')}).to_csv('results.csv')
     mean_acc = exp.cv_results_['mean_test_accuracy'][exp.best_index_]
     std_acc = exp.cv_results_['std_test_accuracy'][exp.best_index_]
     return mean_acc, std_acc
