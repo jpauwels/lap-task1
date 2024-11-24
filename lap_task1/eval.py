@@ -11,11 +11,12 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import ConfusionMatrixDisplay, make_scorer, confusion_matrix
 from pathlib import Path
 import numpy as np
+import csv
 
 N_SPLITS = 5
 
 
-def classification_accuracy(base_dir, seed, common_positions, side, sample_rate, hrir_length, confmat_path):
+def classification_accuracy(base_dir, seed, common_positions, side, sample_rate, hrir_length, confmat_path, all_results_path):
     datasets = []
     azimuths, elevations = zip(*common_positions)
     for collection_id, paths in files.items():
@@ -52,6 +53,13 @@ def classification_accuracy(base_dir, seed, common_positions, side, sample_rate,
         confmat = N_SPLITS*exp.cv_results_['mean_test_confusion_matrix'][exp.best_index_]
         confmat_display = ConfusionMatrixDisplay(confmat, display_labels=files.keys()).plot(xticks_rotation='vertical', cmap='Blues')
         confmat_display.figure_.savefig(confmat_path, bbox_inches='tight', pad_inches=0.05)
+    if all_results_path:
+        result_keys = [k for k in exp.cv_results_.keys() if not k.endswith('_confusion_matrix') and k != 'params']
+        with open(all_results_path, 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(result_keys)
+            for row in zip(*[v for k, v in exp.cv_results_.items() if not k.endswith('_confusion_matrix')]):
+                writer.writerow(row)
     mean_acc = exp.cv_results_['mean_test_accuracy'][exp.best_index_]
     std_acc = exp.cv_results_['std_test_accuracy'][exp.best_index_]
     return mean_acc, std_acc
@@ -64,6 +72,7 @@ def cli():
     parser.add_argument('processed_dir', type=str, help='Path to the directory containing the processed SOFA files.')
     parser.add_argument('--seed', default=0, help='Fix the random seed that initialises the classifiers.')
     parser.add_argument('--confmat', nargs='?', type=str, default='', const='confmat.png', help='Save a PNG confusion matrix file to the given path.')
+    parser.add_argument('--all-results', type=str, default='', help='Path to the CSV file containing results for all folds and classifiers.')
     args = parser.parse_args()
 
     ## Config
@@ -72,8 +81,8 @@ def cli():
     sample_rate = 44100
     hrir_length = 235
 
-    mean_acc, std_acc = classification_accuracy(Path(args.processed_dir), args.seed, common_positions, side, sample_rate, hrir_length, args.confmat)
-    print(f'{mean_acc} +/- {std_acc:.3f}')
+    mean_acc, std_acc = classification_accuracy(Path(args.processed_dir), args.seed, common_positions, side, sample_rate, hrir_length, args.confmat, args.all_results)
+    print(f'{100*mean_acc:.3f} +/- {100*std_acc:.3f}')
 
 
 if __name__ == '__main__':
