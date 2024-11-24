@@ -62,6 +62,8 @@ def classification_accuracy(base_dir, seed, common_positions, side, sample_rate,
                 writer.writerow(row)
     mean_acc = exp.cv_results_['mean_test_accuracy'][exp.best_index_]
     std_acc = exp.cv_results_['std_test_accuracy'][exp.best_index_]
+    best_params = exp.best_estimator_.get_params()
+    print(f"Best classifier is a {best_params['clf']} in the {best_params['domain__domain']} domain")
     return mean_acc, std_acc
 
 
