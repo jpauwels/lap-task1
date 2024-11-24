@@ -12,7 +12,8 @@ from pathlib import Path
 import numpy as np
 
 
-def classification_accuracy(base_dir, common_positions, side, sample_rate, hrir_length):
+
+def classification_accuracy(base_dir, seed, common_positions, side, sample_rate, hrir_length):
     datasets = []
     azimuths, elevations = zip(*common_positions)
     for collection_id, paths in files.items():
@@ -37,10 +38,12 @@ def classification_accuracy(base_dir, common_positions, side, sample_rate, hrir_
 
     param_grid = {
         'domain': [DomainTransformer('time'), DomainTransformer('magnitude'), DomainTransformer('magnitude_db')],
-        'clf': [LinearSVC(dual='auto', max_iter=20000), SVC(), LogisticRegression(max_iter=500), DecisionTreeClassifier(max_depth=8)],
+        'clf': [LinearSVC(dual='auto', max_iter=20000, random_state=seed), SVC(random_state=seed), LogisticRegression(max_iter=500, random_state=seed), DecisionTreeClassifier(max_depth=8, random_state=seed)],
     }
     exp = GridSearchCV(pipe, param_grid, scoring='accuracy', cv=GroupKFold(n_splits=5), return_train_score=True, error_score='raise', n_jobs=-2).fit(all_features, all_targets, groups=all_groups)
-    return exp.best_score_
+    mean_acc = exp.cv_results_['mean_test_accuracy'][exp.best_index_]
+    std_acc = exp.cv_results_['std_test_accuracy'][exp.best_index_]
+    return mean_acc, std_acc
 
 
 def cli():
@@ -48,6 +51,7 @@ def cli():
     from itertools import chain, product
     parser = argparse.ArgumentParser(description='Task 1 Evaluator')
     parser.add_argument('processed_dir', type=str, help='Path to the directory containing the processed SOFA files.')
+    parser.add_argument('--seed', default=0, help='Fix the random seed that initialises the classifiers.')
     args = parser.parse_args()
 
     ## Config
@@ -56,8 +60,8 @@ def cli():
     sample_rate = 44100
     hrir_length = 235
 
-    acc = classification_accuracy(Path(args.processed_dir), common_positions, side, sample_rate, hrir_length)
-    print(acc)
+    mean_acc, std_acc = classification_accuracy(Path(args.processed_dir), args.seed, common_positions, side, sample_rate, hrir_length)
+    print(f'{mean_acc} +/- {std_acc:.3f}')
 
 
 if __name__ == '__main__':
