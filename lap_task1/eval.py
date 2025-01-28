@@ -41,8 +41,8 @@ def classification_accuracy(base_dir, seed, common_positions, side, sample_rate,
         'clf': [LinearSVC(dual='auto', max_iter=20000, random_state=seed), SVC(random_state=seed), LogisticRegression(max_iter=500, random_state=seed), DecisionTreeClassifier(max_depth=8, random_state=seed)],
     }
     exp = GridSearchCV(pipe, param_grid, scoring='accuracy', cv=GroupKFold(n_splits=5), return_train_score=True, error_score='raise', n_jobs=-2).fit(all_features, all_targets, groups=all_groups)
-    mean_acc = exp.cv_results_['mean_test_accuracy'][exp.best_index_]
-    std_acc = exp.cv_results_['std_test_accuracy'][exp.best_index_]
+    mean_acc = exp.cv_results_['mean_test_score'][exp.best_index_]
+    std_acc = exp.cv_results_['std_test_score'][exp.best_index_]
     return mean_acc, std_acc
 
 
